@@ -18,7 +18,6 @@ from dotenv import load_dotenv
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-print("MY KEY IS:", os.getenv("GEMINI_API_KEY"))
 
 PROVIDER = os.getenv("LLM_PROVIDER", "anthropic").lower()
 
