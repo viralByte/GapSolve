@@ -285,7 +285,7 @@
 
 <script>
   const params = new URLSearchParams(window.location.search);
-  const API_BASE = (params.get("api") || "http://localhost:8000").replace(/\/$/, "");
+  const API_BASE = (params.get("api") || "http://127.0.0.1:8000").replace(/\/$/, "");
 
   const form = document.getElementById("analyze-form");
   const btn = document.getElementById("submit-btn");
@@ -304,13 +304,15 @@
   }
   function clearError() { errorBox.classList.remove("visible"); errorBox.textContent = ""; }
 
-   function renderStats(profile) {
-    const s = profile.submitStats || {};
+   function renderStats(analysis) {
+    // Backend returns difficulty_breakdown with keys like "All", "Easy", "Medium", "Hard"
+    // ("All" is LeetCode's own total-solved bucket, not a sum we compute client-side).
+    const d = analysis.difficulty_breakdown || {};
     const cells = [
-      { cls: "stat",        num: profile.totalSolved ?? "–", label: "Total solved" },
-      { cls: "stat easy",   num: s.easy ?? 0,               label: "Easy" },
-      { cls: "stat medium", num: s.medium ?? 0,             label: "Medium" },
-      { cls: "stat hard",   num: s.hard ?? 0,               label: "Hard" },
+      { cls: "stat",        num: d.All ?? "–",    label: "Total solved" },
+      { cls: "stat easy",   num: d.Easy ?? 0,     label: "Easy" },
+      { cls: "stat medium", num: d.Medium ?? 0,   label: "Medium" },
+      { cls: "stat hard",   num: d.Hard ?? 0,     label: "Hard" },
     ];
     statsEl.textContent = "";
     cells.forEach(c => {
@@ -369,7 +371,7 @@
   }
 
   async function streamPlan(username, signal) {
-    const res = await fetch(`${API_BASE}/generate-plan`, {
+    const res = await fetch(`${API_BASE}/study-plan`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username }),
@@ -413,7 +415,7 @@
 
     try {
       const analysis = await analyze(username, signal);
-      renderStats(analysis.profile || analysis);
+      renderStats(analysis);
       renderTopics(analysis.strong_topics || analysis.strong || [], strongEl, "strong");
       renderTopics(analysis.weak_topics || analysis.weak || [], weakEl, "weak");
       results.classList.add("visible");
