@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head> <link rel="stylesheet" href="style.css">
+<head> 
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>GapSolve — AI-powered LeetCode Study Planner</title>
@@ -249,11 +249,12 @@
     <form class="input-card" id="analyze-form">
       <label class="field-label" for="username">LeetCode username</label>
       <div class="input-row">
-        <input class="username" id="username" type="text" placeholder="e.g. johndoe123" autocomplete="off" required />
+        <input class="username" id="username" type="text" placeholder="e.g. johndoe123"
+       autocomplete="off" autocapitalize="none" spellcheck="false" required />
         <button class="primary" id="submit-btn" type="submit">Analyze &amp; Plan</button>
       </div>
       <div class="hint">We fetch public profile data only. Nothing is stored.</div>
-      <div class="error" id="error-box"></div>
+      <div class="error" id="error-box" aria-live="polite"></div>
     </form>
 
     <section class="results" id="results">
@@ -303,20 +304,37 @@
   }
   function clearError() { errorBox.classList.remove("visible"); errorBox.textContent = ""; }
 
-  function renderStats(profile) {
+   function renderStats(profile) {
     const s = profile.submitStats || {};
-    statsEl.innerHTML = `
-      <div class="stat"><div class="num">${profile.totalSolved ?? "–"}</div><div class="label">Total solved</div></div>
-      <div class="stat easy"><div class="num">${s.easy ?? 0}</div><div class="label">Easy</div></div>
-      <div class="stat medium"><div class="num">${s.medium ?? 0}</div><div class="label">Medium</div></div>
-      <div class="stat hard"><div class="num">${s.hard ?? 0}</div><div class="label">Hard</div></div>
-    `;
+    const cells = [
+      { cls: "stat",        num: profile.totalSolved ?? "–", label: "Total solved" },
+      { cls: "stat easy",   num: s.easy ?? 0,               label: "Easy" },
+      { cls: "stat medium", num: s.medium ?? 0,             label: "Medium" },
+      { cls: "stat hard",   num: s.hard ?? 0,               label: "Hard" },
+    ];
+    statsEl.textContent = "";
+    cells.forEach(c => {
+      const wrap = document.createElement("div");
+      wrap.className = c.cls;
+      const num = document.createElement("div");
+      num.className = "num";
+      num.textContent = c.num;
+      const label = document.createElement("div");
+      label.className = "label";
+      label.textContent = c.label;
+      wrap.append(num, label);
+      statsEl.appendChild(wrap);
+    });
   }
 
   function renderTopics(list, el, kind) {
-    el.innerHTML = "";
+    el.textContent = "";
     if (!list || list.length === 0) {
-      el.innerHTML = `<span style="color:var(--muted); font-size:14px;">None detected yet.</span>`;
+      const none = document.createElement("span");
+      none.style.color = "var(--muted)";
+      none.style.fontSize = "14px";
+      none.textContent = "None detected yet.";
+      el.appendChild(none);
       return;
     }
     list.forEach(t => {
@@ -324,10 +342,17 @@
       const count = t.count ?? t.solved ?? "";
       const badge = document.createElement("span");
       badge.className = "badge " + kind;
-      badge.innerHTML = `${name}${count !== "" ? `<span class="count">${count}</span>` : ""}`;
+      badge.textContent = name;
+      if (count !== "") {
+        const c = document.createElement("span");
+        c.className = "count";
+        c.textContent = count;
+        badge.appendChild(c);
+      }
       el.appendChild(badge);
     });
   }
+
 
   async function analyze(username, signal) {
     const res = await fetch(`${API_BASE}/analyze`, {
