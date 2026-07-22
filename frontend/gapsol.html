@@ -8,6 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<!-- Add Chart.js to the head -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 /* ── 1. TOKENS (light) ── */
 :root {
@@ -205,9 +207,93 @@ button.primary:disabled{opacity:.6;cursor:not-allowed}
 .error{background:var(--error-bg);color:var(--error-fg);border:1px solid var(--error-border);padding:14px 18px;border-radius:var(--radius-sm);font-size:14px;margin-top:16px;display:none}
 .error.visible{display:block}
 
-/* ── 11. Results ── */
+/* ── 11. Results & Tabs ── */
 .results{display:none}
 .results.visible{display:block;animation:slideUp .5s cubic-bezier(.16,1,.3,1)}
+
+/* ── New Dashboard Tab Styles ── */
+.dashboard-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+.tab-btn {
+  background: transparent;
+  border: none;
+  padding: 10px 20px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+.tab-btn:hover {
+  background: var(--border);
+  color: var(--text);
+}
+.tab-btn.active {
+  background: var(--coral);
+  color: white;
+  box-shadow: 0 4px 12px -2px rgba(255,90,54,.4);
+}
+.tab-content {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+.tab-content.active {
+  display: block;
+}
+
+/* Chart Container */
+.chart-container {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+  margin-bottom: 24px;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Problem Bank Grids */
+.problem-category {
+  margin-bottom: 24px;
+}
+.problem-category h4 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.problem-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.problem-card {
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  transition: border-color .15s, transform .15s;
+}
+.problem-card:hover {
+  border-color: var(--coral-light);
+  transform: translateY(-2px);
+}
+
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
 @media (max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}}
 .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:18px 16px;text-align:center;animation:countUp .4s cubic-bezier(.22,.68,0,1.2) both;transition:background .25s,border-color .25s}
@@ -305,7 +391,7 @@ footer small{font-size:12px;color:var(--muted)}
     <form id="auth-form">
       <div class="auth-field hidden" id="name-field">
         <label class="field-label" for="auth-name">Your name</label>
-        <input type="text" id="auth-name" class="auth-input" placeholder="Jane Doe" />
+        <input type="text" id="auth-name" class="auth-input" placeholder="Your Name" />
       </div>
       <div class="auth-field">
         <label class="field-label" for="auth-email">Email address</label>
@@ -364,24 +450,65 @@ footer small{font-size:12px;color:var(--muted)}
       <div class="error" id="error-box" role="status" aria-live="polite"></div>
     </div>
 
+    <!-- Results Area containing Tabs -->
     <div class="results" id="results">
-      <div class="stats" id="stats"></div>
-      <div class="grid-2">
-        <div class="card">
-          <h3><span class="dot mint"></span>Strong topics</h3>
-          <div class="topic-list" id="strong-topics"></div>
+      <!-- Tab Navigation -->
+      <div class="dashboard-tabs">
+        <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
+        <button class="tab-btn" onclick="switchTab('study-plan')">Study Plan</button>
+        <button class="tab-btn" onclick="switchTab('problem-bank')">Problem Bank</button>
+      </div>
+
+      <!-- Tab Contents -->
+      
+      <!-- 1. Overview Tab -->
+      <div id="overview" class="tab-content active">
+        <div class="stats" id="stats"></div>
+        <div class="chart-container">
+          <canvas id="difficultyChart"></canvas>
         </div>
-        <div class="card">
-          <h3><span class="dot terra"></span>Weak topics — focus here</h3>
-          <div class="topic-list" id="weak-topics"></div>
+        <div class="grid-2">
+          <div class="card">
+            <h3><span class="dot mint"></span>Strong topics</h3>
+            <div class="topic-list" id="strong-topics"></div>
+          </div>
+          <div class="card">
+            <h3><span class="dot terra"></span>Weak topics — focus here</h3>
+            <div class="topic-list" id="weak-topics"></div>
+          </div>
         </div>
       </div>
-      <div class="plan-card">
-        <div class="plan-card-accent"></div>
-        <h3>Your personalized study plan</h3>
-        <p class="sub">Generated by AI, prioritized by your weakest topics first.</p>
-        <div class="plan-content" id="plan-content"></div>
+
+      <!-- 2. Study Plan Tab -->
+      <div id="study-plan" class="tab-content">
+        <div class="card" style="margin-bottom: 24px;">
+          <h3 style="margin-bottom: 8px;">Customize Your Focus</h3>
+          <p class="sub" style="margin-bottom: 16px;">Select specific topics to prioritize. If none are selected, the AI will default to your weakest topics.</p>
+          <div id="topic-selector" class="topic-list" style="margin-bottom: 20px;">
+             <!-- Checkboxes inject here -->
+             <span style="color: var(--muted); font-size: 14px;">Analyze a profile first to see topics.</span>
+          </div>
+          <button id="generate-plan-btn" class="primary" style="display: none; width: 100%;">Generate Custom Plan</button>
+        </div>
+
+        <div class="plan-card" id="plan-container" style="display: none;">
+          <div class="plan-card-accent"></div>
+          <h3>Your personalized study plan</h3>
+          <p class="sub">Generated by AI.</p>
+          <div class="plan-content" id="plan-content"></div>
+        </div>
       </div>
+
+      <!-- 3. Problem Bank Tab -->
+      <div id="problem-bank" class="tab-content">
+        <div class="card">
+          <h3 style="margin-bottom: 24px;">Recommended Problem Bank</h3>
+          <div id="categorized-problems">
+            <p class="sub">Analyzing problems...</p>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <section class="section-block" id="how-it-works">
@@ -434,8 +561,93 @@ footer small{font-size:12px;color:var(--muted)}
 </div>
 
 <script>
-  const API_BASE = "http://localhost:8000";
+  const API_BASE = "http://127.0.0.1:8000";
   let currentUser = null;
+  let chartInstance = null;
+
+  /* ── Tab Switching Logic ── */
+  window.switchTab = function(tabId) {
+    // Remove active class from all buttons and contents
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    
+    // Add active class to target
+    document.querySelector(`.tab-btn[onclick="switchTab('${tabId}')"]`).classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+  };
+
+  /* ── Chart Rendering Logic ── */
+  function renderChart(breakdown) {
+    const ctx = document.getElementById('difficultyChart').getContext('2d');
+    
+    // Destroy previous chart instance if it exists
+    if (chartInstance) {
+      chartInstance.destroy();
+    }
+
+    const isDark = document.documentElement.dataset.theme === 'dark';
+    const textColor = isDark ? '#F5F4F0' : '#1C1917';
+
+    chartInstance = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Easy', 'Medium', 'Hard'],
+        datasets: [{
+          data: [breakdown.Easy || 0, breakdown.Medium || 0, breakdown.Hard || 0],
+          backgroundColor: ['#10B981', '#F59E0B', '#E11D48'],
+          borderWidth: 0,
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: textColor,
+              font: { family: "'Plus Jakarta Sans', sans-serif", size: 14 }
+            }
+          }
+        },
+        cutout: '75%'
+      }
+    });
+  }
+
+  /* ── Render Categorized Problems Logic ── */
+  function renderCategorizedProblems(categories) {
+    const container = document.getElementById('categorized-problems');
+    container.innerHTML = '';
+
+    if (!categories || Object.keys(categories).length === 0) {
+      container.innerHTML = '<p class="sub" style="text-align: center;">No categorized problems found.</p>';
+      return;
+    }
+
+    for (const [categoryName, problems] of Object.entries(categories)) {
+      const categoryDiv = document.createElement('div');
+      categoryDiv.className = 'problem-category';
+      
+      const header = document.createElement('h4');
+      header.innerHTML = `<span class="dot mint"></span>${categoryName} <span class="badge count" style="background: var(--pill-bg); color: var(--pill-fg); padding: 2px 8px;">${problems.length}</span>`;
+      
+      const grid = document.createElement('div');
+      grid.className = 'problem-grid';
+
+      problems.forEach(prob => {
+        const title = typeof prob === 'string' ? prob : (prob.title || prob.name || 'Unknown Problem');
+        const card = document.createElement('div');
+        card.className = 'problem-card';
+        card.textContent = title;
+        grid.appendChild(card);
+      });
+
+      categoryDiv.appendChild(header);
+      categoryDiv.appendChild(grid);
+      container.appendChild(categoryDiv);
+    }
+  }
 
   /* ── Auth helpers ── */
   async function loadUser() {
@@ -480,6 +692,12 @@ footer small{font-size:12px;color:var(--muted)}
     html.dataset.theme = isDark ? "light" : "dark";
     document.getElementById("theme-icon").textContent = isDark ? "🌙" : "☀️";
     localStorage.setItem("gs_theme", html.dataset.theme);
+    
+    // Update chart text color when theme toggles
+    if (chartInstance) {
+      chartInstance.options.plugins.legend.labels.color = isDark ? '#F5F4F0' : '#1C1917';
+      chartInstance.update();
+    }
   }
 
   function showAuth() {
@@ -509,7 +727,6 @@ footer small{font-size:12px;color:var(--muted)}
       authSubmit.textContent = activeTab === "signin" ? "Sign in" : "Create account";
       nameField.classList.toggle("hidden", activeTab === "signin");
       
-      // Reset error styling & text back to normal when switching tabs
       const errEl = document.getElementById("auth-error");
       errEl.style.color = "";
       errEl.textContent = "";
@@ -556,25 +773,20 @@ footer small{font-size:12px;color:var(--muted)}
         saveUser(data.user, data.token);
         showApp();
       } else {
-    // 1. Pre-fill email before clearing fields
-      const registeredEmail = email;
+        const registeredEmail = email;
+        activeTab = "signin";
+        authTabs.forEach(t => t.classList.toggle("active", t.dataset.tab === "signin"));
+        authTitle.textContent = "Sign in to continue";
+        authSubmit.textContent = "Sign in";
+        nameField.classList.add("hidden");
 
-    // 2. Programmatically switch active tab to "signin"
-      activeTab = "signin";
-      authTabs.forEach(t => t.classList.toggle("active", t.dataset.tab === "signin"));
-      authTitle.textContent = "Sign in to continue";
-      authSubmit.textContent = "Sign in";
-      nameField.classList.add("hidden");
+        document.getElementById("auth-password").value = "";
+        document.getElementById("auth-name").value = "";
+        document.getElementById("auth-email").value = registeredEmail;
 
-    // 3. Clear password & reset form inputs
-      document.getElementById("auth-password").value = "";
-      document.getElementById("auth-name").value = "";
-      document.getElementById("auth-email").value = registeredEmail;
-
-    // 4. Announce success in mint color on the sign-in tab
-      errEl.style.color = "var(--mint)";
-      errEl.textContent = "Account created successfully! Please sign in with your credentials.";
-  }
+        errEl.style.color = "var(--mint)";
+        errEl.textContent = "Account created successfully! Please sign in with your credentials.";
+      }
     } catch (err) {
       errEl.textContent = "Could not reach the server.";
     } finally {
@@ -672,34 +884,57 @@ footer small{font-size:12px;color:var(--muted)}
     return await res.json();
   }
 
-  async function streamPlan(username, signal) {
-    const token = localStorage.getItem("gs_token");
-    const res = await fetch(`${API_BASE}/study-plan`, {
-      method: "POST", 
-      headers: { 
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify({ username }), 
-      signal
-    });
-    if (!res.ok || !res.body) throw new Error(`Plan stream failed (${res.status})`);
-    planEl.textContent = "";
-    planEl.classList.add("streaming-cursor");
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        planEl.textContent += decoder.decode(value, { stream: true });
-        planEl.scrollTop = planEl.scrollHeight;
-      }
-      planEl.textContent += decoder.decode();
-    } finally {
-      planEl.classList.remove("streaming-cursor");
+  async function streamPlan(username, topics, signal) {
+  const token = localStorage.getItem("gs_token");
+  const res = await fetch(`${API_BASE}/study-plan`, {
+    method: "POST", 
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    // Pass the selected topics to the backend!
+    body: JSON.stringify({ username: username, selected_topics: topics }), 
+    signal
+  });
+  
+  if (!res.ok || !res.body) throw new Error(`Plan stream failed (${res.status})`);
+  
+  planEl.textContent = "";
+  // Removed the blinking cursor class here to prioritize the percentage UI
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  const generateBtn = document.getElementById("generate-plan-btn");
+  
+  let currentChars = 0;
+  const estimatedTotalChars = 3000; // Estimate for an 8-10 day plan
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      const chunk = decoder.decode(value, { stream: true });
+      planEl.textContent += chunk;
+      planEl.scrollTop = planEl.scrollHeight;
+      
+      // Calculate and display the live percentage
+      currentChars += chunk.length;
+      let percent = Math.min(99, Math.floor((currentChars / estimatedTotalChars) * 100));
+      generateBtn.innerHTML = `<span class="loader"></span>Developing Plan... ${percent}%`;
     }
+    
+    planEl.textContent += decoder.decode();
+    generateBtn.innerHTML = `Plan Complete! (100%)`; // Snap to 100% on completion
+    
+  } finally {
+    // Any necessary cleanup
   }
+}
+
+  const generateBtn = document.getElementById("generate-plan-btn");
+  const planContainer = document.getElementById("plan-container");
+  const topicSelector = document.getElementById("topic-selector");
+  let currentAnalyzedUsername = "";
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault(); clearError();
@@ -708,23 +943,87 @@ footer small{font-size:12px;color:var(--muted)}
     const signal = activeController.signal;
     const username = document.getElementById("username").value.trim();
     if (!username) return;
+    
+    currentAnalyzedUsername = username;
+    switchTab('overview');
+    
     btn.disabled = true;
     btn.innerHTML = `<span class="loader"></span>Analyzing…`;
     results.classList.remove("visible");
+    planContainer.style.display = "none";
+    planEl.textContent = "";
+
     try {
       const analysis = await analyze(username, signal);
+      
       renderStats(analysis);
-      renderTopics(analysis.strong_topics || analysis.strong || [], strongEl, "strong");
-      renderTopics(analysis.weak_topics || analysis.weak || [], weakEl, "weak");
+      renderTopics(analysis.strong_topics || [], strongEl, "strong");
+      renderTopics(analysis.weak_topics || [], weakEl, "weak");
+      renderChart(analysis.difficulty_breakdown || {});
+      renderCategorizedProblems(analysis.categorized_problems || {});
+      
+      // Populate the Topic Selector Checklist in the Study Plan Tab
+      topicSelector.innerHTML = "";
+      const allTopics = new Set();
+      (analysis.weak_topics || []).forEach(t => allTopics.add(t.topic || t.name));
+      (analysis.strong_topics || []).forEach(t => allTopics.add(t.topic || t.name));
+      
+      if (allTopics.size === 0) {
+        topicSelector.innerHTML = '<span style="color: var(--muted); font-size: 14px;">No topics found for this user.</span>';
+      } else {
+        allTopics.forEach(topic => {
+          const lbl = document.createElement("label");
+          lbl.style.display = "inline-flex"; lbl.style.alignItems = "center"; 
+          lbl.style.gap = "6px"; lbl.style.marginRight = "16px"; lbl.style.cursor = "pointer";
+          
+          const cb = document.createElement("input");
+          cb.type = "checkbox"; cb.value = topic; cb.className = "topic-checkbox";
+          
+          lbl.appendChild(cb); lbl.appendChild(document.createTextNode(topic));
+          topicSelector.appendChild(lbl);
+        });
+        generateBtn.style.display = "inline-block";
+        // Reset button text on fresh analysis just in case
+        generateBtn.textContent = "Generate Custom Plan"; 
+      }
+
       results.classList.add("visible");
-      btn.innerHTML = `<span class="loader"></span>Generating plan…`;
-      await streamPlan(username, signal);
+      
     } catch (err) {
       if (err.name === "AbortError") return;
-      showError(err.message || "Something went wrong. Is the backend running on http://localhost:8000?");
+      showError(err.message || "Something went wrong.");
     } finally {
       btn.disabled = false;
-      btn.textContent = "Analyze & Plan";
+      btn.textContent = "Analyze";
+      activeController = null;
+    }
+  });
+
+  // Handle the manual generation of the plan
+  generateBtn.addEventListener("click", async () => {
+    if (activeController) activeController.abort();
+    activeController = new AbortController();
+    const signal = activeController.signal;
+    
+    // Gather which checkboxes were checked
+    const checkedBoxes = document.querySelectorAll(".topic-checkbox:checked");
+    const selectedTopics = Array.from(checkedBoxes).map(cb => cb.value);
+    
+    planContainer.style.display = "block";
+    generateBtn.disabled = true;
+    generateBtn.innerHTML = `<span class="loader"></span>Developing Plan... 0%`;
+    
+    try {
+      await streamPlan(currentAnalyzedUsername, selectedTopics, signal);
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        planEl.textContent = "Error generating plan: " + err.message;
+        generateBtn.textContent = "Generate Custom Plan"; // Only reset on error
+      }
+    } finally {
+      generateBtn.disabled = false;
+      // Note: We deliberately do NOT blindly reset textContent here anymore, 
+      // otherwise it overwrites the "Plan Complete!" success message!
       activeController = null;
     }
   });
