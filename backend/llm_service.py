@@ -19,13 +19,13 @@ env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
 
-PROVIDER = os.getenv("LLM_PROVIDER", "anthropic").lower()
+PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower()
 
 SYSTEM_PROMPT = """You are an expert DSA (Data Structures & Algorithms) interview prep coach.
 
 You will be given a user's LeetCode solve statistics broken down by topic and difficulty.
 
-Generate a personalized, day-by-day study plan (10-14 days) that:
+Generate a personalized, day-by-day study plan (8-10 days) that:
 - Prioritizes their weakest topics first, and explains briefly why each matters for interviews
 - Recommends 2-4 specific, well-known LeetCode problems per topic (use real, commonly known problem names)
 - Gradually increases difficulty within each topic (easy -> medium -> hard)
@@ -37,27 +37,45 @@ Do not include any preamble before Day 1 -- start directly with the plan.
 """
 
 
-def _build_user_message(gap_analysis: dict) -> str:
+def _build_user_message(gap_analysis: dict, selected_topics: list) -> str:
     weak = ", ".join(
-        f"{t['topic']} ({t['solved']} solved)" for t in gap_analysis["weak_topics"]
+        f"{t['topic']} ({t['count']} solved)" for t in gap_analysis["weak_topics"]
     ) or "none identified"
     strong = ", ".join(
-        f"{t['topic']} ({t['solved']} solved)" for t in gap_analysis["strong_topics"]
+        f"{t['topic']} ({t['count']} solved)" for t in gap_analysis["strong_topics"]
     ) or "none identified"
 
-    return f"""Here is my LeetCode profile analysis:
-
+    base_msg = f"""Here is my LeetCode profile analysis:
 Username: {gap_analysis['username']}
 Difficulty breakdown: {gap_analysis['difficulty_breakdown']}
 Weak topics: {weak}
 Strong topics: {strong}
+"""
+    
+    # If the user selected specific topics in the UI, force the AI to focus ONLY on those
+    if selected_topics:
+        topics_str = ", ".join(selected_topics)
+        base_msg += f"\nCRITICAL INSTRUCTION: I only want to study these specific topics: {topics_str}. Ignore my general weak/strong topics and ONLY generate a plan for {topics_str}."
+    else:
+        base_msg += "\nGenerate my personalized study plan based on my weakest topics."
 
-Generate my personalized study plan based on this."""
+    return base_msg
 
+async def stream_study_plan(gap_analysis: dict, selected_topics: list = None) -> AsyncGenerator[str, None]:
+    """Yields chunks of text as the study plan is generated, for progressive rendering."""
+    try:
+        user_message = _build_user_message(gap_analysis, selected_topics or [])
 
-# ---------------------------------------------------------------------------
-# Anthropic (Claude) backend
-# ---------------------------------------------------------------------------
+        if PROVIDER == "gemini":
+            async for chunk in _stream_gemini(user_message):
+                yield chunk
+        else:
+            async for chunk in _stream_anthropic(user_message):
+                yield chunk
+                
+    except Exception as e:
+        # If the backend crashes here, it will type the error out on your frontend!
+        yield f"\n\n**Backend Crash Detected:** {str(e)}\n\nCheck your terminal where Uvicorn is running for the full details."
 
 async def _stream_anthropic(user_message: str) -> AsyncGenerator[str, None]:
     from anthropic import AsyncAnthropic
@@ -102,19 +120,3 @@ async def _stream_gemini(user_message: str) -> AsyncGenerator[str, None]:
     async for chunk in response:
         if chunk.text:
             yield chunk.text
-
-
-# ---------------------------------------------------------------------------
-# Public entrypoint
-# ---------------------------------------------------------------------------
-
-async def stream_study_plan(gap_analysis: dict) -> AsyncGenerator[str, None]:
-    """Yields chunks of text as the study plan is generated, for progressive rendering."""
-    user_message = _build_user_message(gap_analysis)
-
-    if PROVIDER == "gemini":
-        async for chunk in _stream_gemini(user_message):
-            yield chunk
-    else:
-        async for chunk in _stream_anthropic(user_message):
-            yield chunk
