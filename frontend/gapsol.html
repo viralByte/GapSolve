@@ -8,7 +8,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-<!-- Add Chart.js to the head -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 /* ── 1. TOKENS (light) ── */
@@ -211,15 +210,17 @@ button.primary:disabled{opacity:.6;cursor:not-allowed}
 .results{display:none}
 .results.visible{display:block;animation:slideUp .5s cubic-bezier(.16,1,.3,1)}
 
-/* ── New Dashboard Tab Styles ── */
 .dashboard-tabs {
   display: flex;
   gap: 8px;
   margin-bottom: 24px;
   border-bottom: 1px solid var(--border);
   padding-bottom: 8px;
+  width: 100%;
 }
+
 .tab-btn {
+  flex: 1; /* This forces all tabs to take up equal space */
   background: transparent;
   border: none;
   padding: 10px 20px;
@@ -362,6 +363,46 @@ footer small{font-size:12px;color:var(--muted)}
 }
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 @media (max-width:500px){.header-right{gap:10px}nav.top-links{display:none}#user-email-display{max-width:100px}.auth-modal{padding:28px 20px}.hero{margin:16px auto 36px}.input-card{padding:20px}}
+/* ── NEW: Heatmap ── */
+.heatmap-wrap{display:flex;flex-wrap:wrap;gap:3px;max-width:100%;overflow-x:auto;padding:4px 0}
+.heat-cell{width:11px;height:11px;border-radius:2px;background:var(--border);flex-shrink:0}
+.heat-0{background:var(--border)}
+.heat-1{background:#9BE9A8}.heat-2{background:#40C463}.heat-3{background:#30A14E}.heat-4{background:#216E39}
+[data-theme="dark"] .heat-1{background:#0E4429}[data-theme="dark"] .heat-2{background:#006D32}
+[data-theme="dark"] .heat-3{background:#26A641}[data-theme="dark"] .heat-4{background:#39D353}
+.streak-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.streak-badge{background:var(--pill-bg);color:var(--pill-fg);padding:8px 16px;border-radius:999px;font-size:13px;font-weight:700}
+
+/* ── NEW: Progression ── */
+.prog-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.prog-arrow{font-size:22px;font-weight:800}
+.prog-up{color:var(--mint)}.prog-down{color:var(--terra)}.prog-flat{color:var(--muted)}
+
+/* ── NEW: Multi-select dropdown ── */
+.topic-dropdown{position:relative;max-width:420px;margin-bottom:16px}
+.dropdown-toggle{width:100%;text-align:left;padding:13px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--input-bg);color:var(--text);font-family:inherit;font-size:15px;font-weight:500;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.dropdown-menu{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow-lg);padding:8px;z-index:50;max-height:280px;overflow-y:auto;display:none}
+.dropdown-menu.open{display:block}
+.dropdown-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:14px}
+.dropdown-item:hover{background:var(--bg)}
+
+/* ── NEW: Export + notice ── */
+.export-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.btn-ghost{padding:10px 18px;background:transparent;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;font-weight:600;color:var(--text);cursor:pointer;transition:border-color .15s}
+.btn-ghost:hover{border-color:var(--coral)}
+.notice {
+  background: var(--pill-bg);
+  color: var(--pill-fg);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 18px;
+  display: block; /* Replaced flex with block to keep text flowing naturally */
+  line-height: 1.6;
+}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:720px){.compare-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -435,14 +476,14 @@ footer small{font-size:12px;color:var(--muted)}
     <section class="hero">
       <span class="pill">✨ AI-powered study planner</span>
       <h1>Close your LeetCode gaps. <span>Not your motivation.</span></h1>
-      <p>Paste your LeetCode username. We'll analyze your solve history, spot your weakest topics, and stream a personalized 10–14 day study plan built around your gaps.</p>
+      <p>Paste your LeetCode username. We'll analyze your solve history, spot your weakest topics, and stream a personalized study plan built around your gaps.</p>
     </section>
 
     <div class="input-card" id="analyze-card">
       <form id="analyze-form">
         <label class="field-label" for="username">LeetCode username</label>
         <div class="input-row">
-          <input type="text" id="username" class="username" placeholder="e.g. neetcode" autocomplete="off" required />
+          <input type="text" id="username" class="username" placeholder="leetcode.com/'username' " autocomplete="off" required />
           <button type="submit" class="primary" id="submit-btn">Analyze & Plan</button>
         </div>
       </form>
@@ -450,24 +491,54 @@ footer small{font-size:12px;color:var(--muted)}
       <div class="error" id="error-box" role="status" aria-live="polite"></div>
     </div>
 
-    <!-- Results Area containing Tabs -->
     <div class="results" id="results">
-      <!-- Tab Navigation -->
       <div class="dashboard-tabs">
         <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
         <button class="tab-btn" onclick="switchTab('study-plan')">Study Plan</button>
-        <button class="tab-btn" onclick="switchTab('problem-bank')">Problem Bank</button>
+        <button class="tab-btn" onclick="switchTab('problem-bank')">Problem Clusters</button>
+        <button class="tab-btn" onclick="switchTab('compare')">Compare</button>
       </div>
 
-      <!-- Tab Contents -->
-      
-      <!-- 1. Overview Tab -->
+      <!-- 1. Overview -->
       <div id="overview" class="tab-content active">
         <div class="stats" id="stats"></div>
-        <div class="chart-container">
-          <canvas id="difficultyChart"></canvas>
-        </div>
+
         <div class="grid-2">
+          <div class="card">
+            <h3><span class="dot mint"></span>Difficulty breakdown</h3>
+            <div class="chart-container" style="margin:0;max-width:none;box-shadow:none;border:none;padding:8px">
+              <canvas id="difficultyChart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3><span class="dot terra"></span>Topic coverage (radar)</h3>
+            <div class="chart-container" style="margin:0;max-width:none;box-shadow:none;border:none;padding:8px">
+              <canvas id="radarChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:24px">
+          <h3><span class="dot mint"></span>Problems solved per topic</h3>
+          <div class="chart-container" style="margin:0;max-width:none;box-shadow:none;border:none;padding:8px;height:320px">
+            <canvas id="topicBarChart"></canvas>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3><span class="dot mint"></span>Monthly progression</h3>
+            <div id="progression"></div>
+          </div>
+          <div class="card">
+            <h3><span class="dot terra"></span>Consistency streak</h3>
+            <div class="streak-row" id="streak-stats"></div>
+            <div class="heatmap-wrap" id="heatmap"></div>
+            <p class="hint" style="margin-top:10px">Last ~6 months of daily submission activity.</p>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:24px">
           <div class="card">
             <h3><span class="dot mint"></span>Strong topics</h3>
             <div class="topic-list" id="strong-topics"></div>
@@ -479,77 +550,86 @@ footer small{font-size:12px;color:var(--muted)}
         </div>
       </div>
 
-      <!-- 2. Study Plan Tab -->
+      <!-- 2. Study Plan -->
       <div id="study-plan" class="tab-content">
-        <div class="card" style="margin-bottom: 24px;">
-          <h3 style="margin-bottom: 8px;">Customize Your Focus</h3>
-          <p class="sub" style="margin-bottom: 16px;">Select specific topics to prioritize. If none are selected, the AI will default to your weakest topics.</p>
-          <div id="topic-selector" class="topic-list" style="margin-bottom: 20px;">
-             <!-- Checkboxes inject here -->
-             <span style="color: var(--muted); font-size: 14px;">Analyze a profile first to see topics.</span>
+        <div class="card" style="margin-bottom:24px">
+          <h3 style="margin-bottom:8px">Customize your focus</h3>
+          <p class="sub" style="margin-bottom:16px">Pick specific topics from the dropdown to build a focused, day-wise plan. Leave empty to target your weakest topics automatically.</p>
+
+          <div class="topic-dropdown">
+            <button type="button" class="dropdown-toggle" id="dropdown-toggle">
+              <span id="dropdown-label">Select topics…</span>
+              <span>▾</span>
+            </button>
+            <div class="dropdown-menu" id="dropdown-menu"></div>
           </div>
-          <button id="generate-plan-btn" class="primary" style="display: none; width: 100%;">Generate Custom Plan</button>
+
+          <button id="generate-plan-btn" class="primary" style="display:none;width:100%">Generate Custom Plan</button>
         </div>
 
-        <div class="plan-card" id="plan-container" style="display: none;">
+        <div class="plan-card" id="plan-container" style="display:none">
           <div class="plan-card-accent"></div>
           <h3>Your personalized study plan</h3>
-          <p class="sub">Generated by AI.</p>
+          <p class="sub">Generated by AI · day-by-day.</p>
           <div class="plan-content" id="plan-content"></div>
-        </div>
-      </div>
-
-      <!-- 3. Problem Bank Tab -->
-      <div id="problem-bank" class="tab-content">
-        <div class="card">
-          <h3 style="margin-bottom: 24px;">Recommended Problem Bank</h3>
-          <div id="categorized-problems">
-            <p class="sub">Analyzing problems...</p>
+          <div class="export-row" id="export-row" style="display:none">
+            <button class="btn-ghost" id="export-md">⬇ Export Markdown</button>
+            <button class="btn-ghost" id="export-pdf">🖨 Export PDF</button>
           </div>
         </div>
       </div>
 
+      <!-- 3. Problem Clusters -->
+      <div id="problem-bank" class="tab-content">
+        <div class="card">
+          <h3 style="margin-bottom:14px">Recently solved — grouped by pattern</h3>
+          <div class="notice">
+            ⓘ LeetCode's public API only exposes your <strong>~20 most recent</strong> accepted submissions, so this shows recent activity clustered by pattern (not your full all-time history).
+          </div>
+          <div id="categorized-problems">
+            <p class="sub">Analyze a profile to see your recent problems.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Compare -->
+      <div id="compare" class="tab-content">
+        <div class="card" style="margin-bottom:24px">
+          <h3 style="margin-bottom:8px">Compare with a friend</h3>
+          <p class="sub" style="margin-bottom:16px">See how your topic coverage stacks up side by side.</p>
+          <div class="input-row">
+            <input type="text" id="friend-username" class="username" placeholder="Friend's LeetCode username" autocomplete="off" />
+            <button class="primary" id="compare-btn">Compare</button>
+          </div>
+          <div class="error" id="compare-error" role="status" aria-live="polite"></div>
+        </div>
+        <div id="compare-results" style="display:none">
+          <div class="card" style="margin-bottom:24px">
+            <h3><span class="dot mint"></span>Topic coverage — head to head</h3>
+            <div class="chart-container" style="margin:0;max-width:none;box-shadow:none;border:none;padding:8px">
+              <canvas id="compareRadar"></canvas>
+            </div>
+          </div>
+          <div class="compare-grid" id="compare-stats"></div>
+        </div>
+      </div>
     </div>
 
     <section class="section-block" id="how-it-works">
       <h2>How it works</h2>
       <div class="steps">
-        <div class="step">
-          <div class="step-num">1</div>
-          <h4>Paste your username</h4>
-          <p>Enter your public LeetCode handle. No passwords, no private data.</p>
-        </div>
-        <div class="step">
-          <div class="step-num">2</div>
-          <h4>We analyze gaps</h4>
-          <p>Our engine reads your solved questions and surfaces your weakest topics.</p>
-        </div>
-        <div class="step">
-          <div class="step-num">3</div>
-          <h4>Get a plan</h4>
-          <p>Receive a focused 10–14 day roadmap with practice problems and review.</p>
-        </div>
+        <div class="step"><div class="step-num">1</div><h4>Paste your username</h4><p>Enter your public LeetCode handle. No passwords, no private data.</p></div>
+        <div class="step"><div class="step-num">2</div><h4>We analyze gaps</h4><p>Our engine reads your solved questions and surfaces your weakest topics.</p></div>
+        <div class="step"><div class="step-num">3</div><h4>Get a plan</h4><p>Receive a focused day-wise roadmap with practice problems and review.</p></div>
       </div>
     </section>
 
     <section class="section-block" id="about">
       <h2>Built for focused interview prep</h2>
       <div class="steps">
-        <div class="step">
-          <div class="step-num">A</div>
-          <h4>Topic-aware</h4>
-          <p>Plans are weighted by topic difficulty, not just problem count.</p>
-        </div>
-        <div class="step">
-          <div class="step-num">B</div>
-          <h4>Streamed responses</h4>
-          <p>Your study plan appears word-by-word so you can read while it generates.</p>
-        </div>
-        <div class="step">
-          <div class="step-num">C</div>
-          <h4>Your progress</h4>
-          <p>Sign in once to save your plan and pick up where you left off.</p>
-        </div>
+        <div class="step"><div class="step-num">A</div><h4>Topic-aware</h4><p>Plans are weighted by topic difficulty, not just problem count.</p></div>
+        <div class="step"><div class="step-num">B</div><h4>Streamed responses</h4><p>Your study plan appears word-by-word so you can read while it generates.</p></div>
+        <div class="step"><div class="step-num">C</div><h4>Your progress</h4><p>Sign in once to save your plan and pick up where you left off.</p></div>
       </div>
     </section>
   </main>
@@ -563,469 +643,491 @@ footer small{font-size:12px;color:var(--muted)}
 <script>
   const API_BASE = "http://127.0.0.1:8000";
   let currentUser = null;
-  let chartInstance = null;
+  let chartInstance = null, radarInstance = null, barInstance = null, compareInstance = null;
+  let currentAnalysis = null;
 
-  /* ── Tab Switching Logic ── */
+  /* ── Helper for Topic Extraction ── */
+  const extractTopic = (t) => t.topic || t.name || t;
+
+  /* ── Tabs ── */
   window.switchTab = function(tabId) {
-    // Remove active class from all buttons and contents
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    
-    // Add active class to target
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.querySelector(`.tab-btn[onclick="switchTab('${tabId}')"]`).classList.add('active');
     document.getElementById(tabId).classList.add('active');
   };
 
-  /* ── Chart Rendering Logic ── */
+  const isDark = () => document.documentElement.dataset.theme === 'dark';
+  const txtColor = () => isDark() ? '#F5F4F0' : '#1C1917';
+  const gridColor = () => isDark() ? 'rgba(255,255,255,.1)' : 'rgba(28,25,23,.1)';
+
+  /* ── Charts ── */
   function renderChart(breakdown) {
     const ctx = document.getElementById('difficultyChart').getContext('2d');
-    
-    // Destroy previous chart instance if it exists
-    if (chartInstance) {
-      chartInstance.destroy();
-    }
-
-    const isDark = document.documentElement.dataset.theme === 'dark';
-    const textColor = isDark ? '#F5F4F0' : '#1C1917';
-
+    if (chartInstance) chartInstance.destroy();
     chartInstance = new Chart(ctx, {
       type: 'doughnut',
-      data: {
-        labels: ['Easy', 'Medium', 'Hard'],
-        datasets: [{
-          data: [breakdown.Easy || 0, breakdown.Medium || 0, breakdown.Hard || 0],
-          backgroundColor: ['#10B981', '#F59E0B', '#E11D48'],
-          borderWidth: 0,
-          hoverOffset: 4
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              color: textColor,
-              font: { family: "'Plus Jakarta Sans', sans-serif", size: 14 }
-            }
-          }
-        },
-        cutout: '75%'
-      }
+      data: { labels: ['Easy','Medium','Hard'],
+        datasets: [{ data:[breakdown.Easy||0,breakdown.Medium||0,breakdown.Hard||0],
+        backgroundColor:['#10B981','#F59E0B','#E11D48'], borderWidth:0, hoverOffset:4 }] },
+      options: { responsive:true, plugins:{ legend:{ position:'bottom',
+        labels:{ color:txtColor(), font:{family:"'Plus Jakarta Sans', sans-serif", size:14} } } }, cutout:'70%' }
     });
   }
 
-  /* ── Render Categorized Problems Logic ── */
+  function renderRadar(topics) {
+    const ctx = document.getElementById('radarChart').getContext('2d');
+    if (radarInstance) radarInstance.destroy();
+    const top = topics.slice(0, 8);
+    radarInstance = new Chart(ctx, {
+      type: 'radar',
+      data: { labels: top.map(t=>extractTopic(t)),
+        datasets:[{ label:'Solved', data:top.map(t=>t.count),
+          backgroundColor:'rgba(255,90,54,.18)', borderColor:'#FF5A36',
+          pointBackgroundColor:'#FF5A36', borderWidth:2 }] },
+      options:{ responsive:true, plugins:{legend:{display:false}},
+        scales:{ r:{ angleLines:{color:gridColor()}, grid:{color:gridColor()},
+          pointLabels:{color:txtColor(), font:{size:11}}, ticks:{display:false, backdropColor:'transparent'} } } }
+    });
+  }
+
+  function renderBar(topics) {
+    const ctx = document.getElementById('topicBarChart').getContext('2d');
+    if (barInstance) barInstance.destroy();
+    barInstance = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: topics.map(t=>extractTopic(t)),
+        datasets:[{ label:'Solved', data:topics.map(t=>t.count),
+          backgroundColor:'#FF5A36', borderRadius:6, barThickness:14 }] },
+      options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{ x:{ grid:{color:gridColor()}, ticks:{color:txtColor()} },
+          y:{ grid:{display:false}, ticks:{color:txtColor(), font:{size:12}} } } }
+    });
+  }
+
+  /* ── Progression ── */
+  function renderProgression(p) {
+    const el = document.getElementById('progression');
+    if (!p) { el.innerHTML = '<p class="sub">No calendar data available.</p>'; return; }
+    const diff = p.this_month - p.last_month;
+    const cls = diff > 0 ? 'prog-up' : diff < 0 ? 'prog-down' : 'prog-flat';
+    const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '▬';
+    el.innerHTML = `
+      <div class="prog-row">
+        <div><div class="stat"><div class="num">${p.last_month}</div><div class="label">Last month</div></div></div>
+        <div class="prog-arrow ${cls}">${arrow}</div>
+        <div><div class="stat"><div class="num" style="color:var(--coral)">${p.this_month}</div><div class="label">This month</div></div></div>
+        <div class="${cls}" style="font-weight:700;font-size:15px">${diff>0?'+':''}${diff} submissions</div>
+      </div>`;
+  }
+
+  /* ── Streak heatmap ── */
+  function renderStreak(cal) {
+    const stats = document.getElementById('streak-stats');
+    const heat = document.getElementById('heatmap');
+    if (!cal) { stats.innerHTML=''; heat.innerHTML='<p class="sub">No streak data.</p>'; return; }
+    stats.innerHTML = `
+      <span class="streak-badge">🔥 ${cal.streak||0} day streak</span>
+      <span class="streak-badge">📅 ${cal.totalActiveDays||0} active days</span>`;
+    heat.innerHTML = '';
+    const days = (cal.days||[]).slice(-182);
+    const max = Math.max(1, ...days.map(d=>d.count));
+    days.forEach(d => {
+      const lvl = d.count===0?0 : d.count>=max*0.75?4 : d.count>=max*0.5?3 : d.count>=max*0.25?2 : 1;
+      const cell = document.createElement('div');
+      cell.className = `heat-cell heat-${lvl}`;
+      cell.title = `${d.date}: ${d.count} submission(s)`;
+      heat.appendChild(cell);
+    });
+    if (!days.length) heat.innerHTML = '<p class="sub">No recent activity recorded.</p>';
+  }
+
+  /* ── Problem clusters ── */
   function renderCategorizedProblems(categories) {
     const container = document.getElementById('categorized-problems');
     container.innerHTML = '';
-
     if (!categories || Object.keys(categories).length === 0) {
-      container.innerHTML = '<p class="sub" style="text-align: center;">No categorized problems found.</p>';
+      container.innerHTML = '<p class="sub" style="text-align:center">No recent problems found for this user.</p>';
       return;
     }
-
-    for (const [categoryName, problems] of Object.entries(categories)) {
-      const categoryDiv = document.createElement('div');
-      categoryDiv.className = 'problem-category';
-      
-      const header = document.createElement('h4');
-      header.innerHTML = `<span class="dot mint"></span>${categoryName} <span class="badge count" style="background: var(--pill-bg); color: var(--pill-fg); padding: 2px 8px;">${problems.length}</span>`;
-      
-      const grid = document.createElement('div');
-      grid.className = 'problem-grid';
-
+    for (const [name, problems] of Object.entries(categories)) {
+      const div = document.createElement('div'); div.className='problem-category';
+      const h = document.createElement('h4');
+      h.innerHTML = `<span class="dot mint"></span>${name} <span class="badge count" style="background:var(--pill-bg);color:var(--pill-fg);padding:2px 8px">${problems.length}</span>`;
+      const grid = document.createElement('div'); grid.className='problem-grid';
       problems.forEach(prob => {
-        const title = typeof prob === 'string' ? prob : (prob.title || prob.name || 'Unknown Problem');
-        const card = document.createElement('div');
-        card.className = 'problem-card';
-        card.textContent = title;
+        const title = typeof prob==='string'?prob:(prob.title||prob.name||'Unknown');
+        const url = prob.url || null;
+        const card = document.createElement(url?'a':'div');
+        card.className='problem-card'; card.textContent=title;
+        if (url){ card.href=url; card.target='_blank'; card.style.textDecoration='none'; }
         grid.appendChild(card);
       });
-
-      categoryDiv.appendChild(header);
-      categoryDiv.appendChild(grid);
-      container.appendChild(categoryDiv);
+      div.append(h, grid); container.appendChild(div);
     }
   }
+
+  /* ── Multi-select dropdown ── */
+  function buildDropdown(topics) {
+    const menu = document.getElementById('dropdown-menu');
+    menu.innerHTML = '';
+    if (!topics.length) { menu.innerHTML='<div class="dropdown-item">No topics available</div>'; return; }
+    topics.forEach(t => {
+      const item = document.createElement('label'); item.className='dropdown-item';
+      const cb = document.createElement('input'); cb.type='checkbox'; cb.value=t; cb.className='topic-checkbox';
+      cb.addEventListener('change', updateDropdownLabel);
+      item.append(cb, document.createTextNode(t)); menu.appendChild(item);
+    });
+    updateDropdownLabel();
+  }
+  
+  function updateDropdownLabel() {
+    const checked = [...document.querySelectorAll('.topic-checkbox:checked')].map(c=>c.value);
+    document.getElementById('dropdown-label').textContent =
+      checked.length ? `${checked.length} topic(s) selected` : 'Select topics…';
+  }
+  
+  document.getElementById('dropdown-toggle').addEventListener('click', () =>
+    document.getElementById('dropdown-menu').classList.toggle('open'));
+  
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.topic-dropdown'))
+      document.getElementById('dropdown-menu').classList.remove('open');
+  });
+
+  /* ── Export ── */
+  function exportMarkdown() {
+    const text = document.getElementById('plan-content').textContent;
+    const blob = new Blob([text], {type:'text/markdown'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `gapsolve-plan-${currentAnalyzedUsername||'user'}.md`;
+    a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  function exportPDF() {
+    const text = document.getElementById('plan-content').textContent;
+    const w = window.open('', '_blank');
+    
+    // Completely obfuscated HTML injection to protect from browser parser
+    const safeHTML = '\x3Chtml\x3E\x3Chead\x3E\x3Ctitle\x3EGapSolve Study Plan\x3C/title\x3E' +
+      '\x3Cstyle\x3Ebody{font-family:system-ui,sans-serif;line-height:1.6;padding:40px;max-width:720px;margin:auto;white-space:pre-wrap}h1{color:#FF5A36}\x3C/style\x3E' +
+      '\x3C/head\x3E\x3Cbody\x3E\x3Ch1\x3EGapSolve Study Plan\x3C/h1\x3E\x3Cdiv\x3E' + 
+      text.replace(/\x3C/g, '&lt;') + 
+      '\x3C/div\x3E\x3C/body\x3E\x3C/html\x3E';
+      
+    w.document.write(safeHTML);
+    w.document.close(); 
+    w.focus(); 
+    setTimeout(()=>w.print(), 300);
+  }
+
+  document.getElementById('export-md').addEventListener('click', exportMarkdown);
+  document.getElementById('export-pdf').addEventListener('click', exportPDF);
 
   /* ── Auth helpers ── */
   async function loadUser() {
     const token = localStorage.getItem("gs_token");
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE}/auth/me`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      if (res.ok) {
-        currentUser = await res.json();
-      } else {
-        localStorage.removeItem("gs_token");
-      }
-    } catch (e) {
-      currentUser = null;
-    }
+      const res = await fetch(`${API_BASE}/auth/me`, { headers:{ "Authorization":`Bearer ${token}` } });
+      if (res.ok) currentUser = await res.json(); else localStorage.removeItem("gs_token");
+    } catch(e) { currentUser = null; }
   }
-
-  function saveUser(user, token) {
-    currentUser = user;
-    localStorage.setItem("gs_token", token);
+  function saveUser(u,t){ currentUser=u; localStorage.setItem("gs_token",t); }
+  function clearUser(){ currentUser=null; localStorage.removeItem("gs_token"); }
+  function loadTheme(){
+    const s = localStorage.getItem("gs_theme");
+    if (s){ document.documentElement.dataset.theme=s;
+      document.getElementById("theme-icon").textContent = s==="dark"?"☀️":"🌙"; }
   }
-
-  function clearUser() {
-    currentUser = null;
-    localStorage.removeItem("gs_token");
-  }
-
-  function loadTheme() {
-    const saved = localStorage.getItem("gs_theme");
-    const html = document.documentElement;
-    if (saved) {
-      html.dataset.theme = saved;
-      document.getElementById("theme-icon").textContent = saved === "dark" ? "☀️" : "🌙";
-    }
-  }
-
-  function toggleTheme() {
-    const html = document.documentElement;
-    const isDark = html.dataset.theme === "dark";
-    html.dataset.theme = isDark ? "light" : "dark";
-    document.getElementById("theme-icon").textContent = isDark ? "🌙" : "☀️";
+  function toggleTheme(){
+    const html=document.documentElement, d=html.dataset.theme==="dark";
+    html.dataset.theme = d?"light":"dark";
+    document.getElementById("theme-icon").textContent = d?"🌙":"☀️";
     localStorage.setItem("gs_theme", html.dataset.theme);
-    
-    // Update chart text color when theme toggles
-    if (chartInstance) {
-      chartInstance.options.plugins.legend.labels.color = isDark ? '#F5F4F0' : '#1C1917';
-      chartInstance.update();
+    [chartInstance,radarInstance,barInstance,compareInstance].forEach(c=>{ if(c) c.destroy(); });
+    if (currentAnalysis) {
+      renderChart(currentAnalysis.difficulty_breakdown||{});
+      renderRadar(currentAnalysis.all_topic_counts||[]);
+      renderBar(currentAnalysis.all_topic_counts||[]);
     }
   }
-
-  function showAuth() {
-    document.getElementById("auth-backdrop").classList.remove("hidden");
-    document.getElementById("main-app").classList.remove("visible");
-  }
-
-  function showApp() {
-    document.getElementById("auth-backdrop").classList.add("hidden");
+  function showAuth(){ document.getElementById("auth-backdrop").classList.remove("hidden");
+    document.getElementById("main-app").classList.remove("visible"); }
+  function showApp(){ document.getElementById("auth-backdrop").classList.add("hidden");
     document.getElementById("main-app").classList.add("visible");
-    document.getElementById("user-email-display").textContent = currentUser ? (currentUser.email || currentUser.name || "User") : "Guest";
-  }
+    document.getElementById("user-email-display").textContent = currentUser?(currentUser.email||currentUser.name||"User"):"Guest"; }
 
-  /* ── Auth tabs ── */
-  let activeTab = "signin";
-  const authTabs = document.querySelectorAll(".auth-tab");
-  const authTitle = document.getElementById("auth-title");
-  const authSubmit = document.getElementById("auth-submit");
-  const nameField = document.getElementById("name-field");
-  const authName = document.getElementById("auth-name");
-
-  authTabs.forEach(tab => {
-    tab.addEventListener("click", () => {
-      activeTab = tab.dataset.tab;
-      authTabs.forEach(t => t.classList.toggle("active", t === tab));
-      authTitle.textContent = activeTab === "signin" ? "Sign in to continue" : "Create your account";
-      authSubmit.textContent = activeTab === "signin" ? "Sign in" : "Create account";
-      nameField.classList.toggle("hidden", activeTab === "signin");
-      
-      const errEl = document.getElementById("auth-error");
-      errEl.style.color = "";
-      errEl.textContent = "";
-    });
-  });
-
-  /* ── Auth form ── */
-  document.getElementById("auth-form").addEventListener("submit", async (e) => {
+  /* ── Auth tabs/form ── */
+  let activeTab="signin";
+  const authTabs=document.querySelectorAll(".auth-tab");
+  const authTitle=document.getElementById("auth-title");
+  const authSubmit=document.getElementById("auth-submit");
+  const nameField=document.getElementById("name-field");
+  const authName=document.getElementById("auth-name");
+  authTabs.forEach(tab=>tab.addEventListener("click",()=>{
+    activeTab=tab.dataset.tab;
+    authTabs.forEach(t=>t.classList.toggle("active",t===tab));
+    authTitle.textContent=activeTab==="signin"?"Sign in to continue":"Create your account";
+    authSubmit.textContent=activeTab==="signin"?"Sign in":"Create account";
+    nameField.classList.toggle("hidden",activeTab==="signin");
+    const e=document.getElementById("auth-error"); e.style.color=""; e.textContent="";
+  }));
+  document.getElementById("auth-form").addEventListener("submit", async e=>{
     e.preventDefault();
-    const errEl = document.getElementById("auth-error");
-    const submitBtn = document.getElementById("auth-submit");
-    const email = document.getElementById("auth-email").value.trim();
-    const password = document.getElementById("auth-password").value;
-    const name = authName.value.trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!email) return errEl.textContent = "Email address is required.";
-    if (!emailRegex.test(email)) return errEl.textContent = "Please enter a valid email address.";
-    if (!password) return errEl.textContent = "Password is required.";
-    if (password.length < 6) return errEl.textContent = "Password must be at least 6 characters.";
-    if (activeTab === "signup" && !name) return errEl.textContent = "Please enter your name.";
-
-    errEl.textContent = "";
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = `<span class="loader"></span>Please wait…`;
-
-    try {
-      const endpoint = activeTab === "signin" ? "/auth/login" : "/auth/signup";
-      const body = activeTab === "signin"
-        ? { email, password }
-        : { name, email, password };
-
-      const res = await fetch(`${API_BASE}${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        errEl.textContent = data.detail || data.message || "Something went wrong.";
-      } else if (activeTab === "signin") {
-        saveUser(data.user, data.token);
-        showApp();
-      } else {
-        const registeredEmail = email;
-        activeTab = "signin";
-        authTabs.forEach(t => t.classList.toggle("active", t.dataset.tab === "signin"));
-        authTitle.textContent = "Sign in to continue";
-        authSubmit.textContent = "Sign in";
+    const errEl=document.getElementById("auth-error");
+    const submitBtn=document.getElementById("auth-submit");
+    const email=document.getElementById("auth-email").value.trim();
+    const password=document.getElementById("auth-password").value;
+    const name=authName.value.trim();
+    const rx=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if(!email) return errEl.textContent="Email address is required.";
+    if(!rx.test(email)) return errEl.textContent="Please enter a valid email address.";
+    if(!password) return errEl.textContent="Password is required.";
+    if(password.length<6) return errEl.textContent="Password must be at least 6 characters.";
+    if(activeTab==="signup"&&!name) return errEl.textContent="Please enter your name.";
+    errEl.textContent=""; submitBtn.disabled=true;
+    submitBtn.innerHTML=`<span class="loader"></span>Please wait…`;
+    try{
+      const endpoint=activeTab==="signin"?"/auth/login":"/auth/signup";
+      const body=activeTab==="signin"?{email,password}:{name,email,password};
+      const res=await fetch(`${API_BASE}${endpoint}`,{method:"POST",
+        headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const data=await res.json();
+      if(!res.ok){ errEl.textContent=data.detail||data.message||"Something went wrong."; }
+      else if(activeTab==="signin"){ saveUser(data.user,data.token); showApp(); }
+      else {
+        const reg=email; activeTab="signin";
+        authTabs.forEach(t=>t.classList.toggle("active",t.dataset.tab==="signin"));
+        authTitle.textContent="Sign in to continue"; authSubmit.textContent="Sign in";
         nameField.classList.add("hidden");
-
-        document.getElementById("auth-password").value = "";
-        document.getElementById("auth-name").value = "";
-        document.getElementById("auth-email").value = registeredEmail;
-
-        errEl.style.color = "var(--mint)";
-        errEl.textContent = "Account created successfully! Please sign in with your credentials.";
+        document.getElementById("auth-password").value="";
+        document.getElementById("auth-name").value="";
+        document.getElementById("auth-email").value=reg;
+        errEl.style.color="var(--mint)";
+        errEl.textContent="Account created successfully! Please sign in.";
       }
-    } catch (err) {
-      errEl.textContent = "Could not reach the server.";
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.textContent = activeTab === "signin" ? "Sign in" : "Create account";
-    }
+    }catch(err){ errEl.textContent="Could not reach the server."; }
+    finally{ submitBtn.disabled=false;
+      submitBtn.textContent=activeTab==="signin"?"Sign in":"Create account"; }
   });
 
-  document.getElementById("signout-btn").addEventListener("click", () => {
-    clearUser();
-    showAuth();
+  document.getElementById("signout-btn").addEventListener("click",()=>{
+    clearUser(); showAuth();
     document.getElementById("results").classList.remove("visible");
-    document.getElementById("username").value = "";
-    document.getElementById("plan-content").textContent = "";
+    document.getElementById("username").value="";
+    document.getElementById("plan-content").textContent="";
     document.getElementById("error-box").classList.remove("visible");
   });
+  document.getElementById("theme-toggle").addEventListener("click",toggleTheme);
 
-  document.getElementById("theme-toggle").addEventListener("click", toggleTheme);
-
-  /* ── Init ── */
   loadTheme();
-  loadUser().then(() => {
-    if (currentUser) showApp(); else showAuth();
-  });
+  loadUser().then(()=>{ if(currentUser) showApp(); else showAuth(); });
 
   /* ── Analyze ── */
-  const form = document.getElementById("analyze-form");
-  const btn = document.getElementById("submit-btn");
-  const errorBox = document.getElementById("error-box");
-  const results = document.getElementById("results");
-  const statsEl = document.getElementById("stats");
-  const strongEl = document.getElementById("strong-topics");
-  const weakEl = document.getElementById("weak-topics");
-  const planEl = document.getElementById("plan-content");
+  const form=document.getElementById("analyze-form");
+  const btn=document.getElementById("submit-btn");
+  const errorBox=document.getElementById("error-box");
+  const results=document.getElementById("results");
+  const statsEl=document.getElementById("stats");
+  const strongEl=document.getElementById("strong-topics");
+  const weakEl=document.getElementById("weak-topics");
+  const planEl=document.getElementById("plan-content");
+  const generateBtn=document.getElementById("generate-plan-btn");
+  const planContainer=document.getElementById("plan-container");
+  const exportRow=document.getElementById("export-row");
+  let currentAnalyzedUsername="";
+  let activeController=null;
 
-  let activeController = null;
-  function showError(m) { errorBox.textContent = m; errorBox.classList.add("visible"); }
-  function clearError() { errorBox.classList.remove("visible"); errorBox.textContent = ""; }
+  function showError(m){ errorBox.textContent=m; errorBox.classList.add("visible"); }
+  function clearError(){ errorBox.classList.remove("visible"); errorBox.textContent=""; }
 
-  function renderStats(a) {
-    const d = a.difficulty_breakdown || {};
-    const cells = [
-      { cls: "stat", num: d.All ?? a.totalSolved ?? "–", label: "Total solved" },
-      { cls: "stat easy", num: d.Easy ?? 0, label: "Easy" },
-      { cls: "stat medium", num: d.Medium ?? 0, label: "Medium" },
-      { cls: "stat hard", num: d.Hard ?? 0, label: "Hard" },
+  function renderStats(a){
+    const d=a.difficulty_breakdown||{};
+    const cells=[
+      {cls:"stat",num:d.All??a.totalSolved??"–",label:"Total solved"},
+      {cls:"stat easy",num:d.Easy??0,label:"Easy"},
+      {cls:"stat medium",num:d.Medium??0,label:"Medium"},
+      {cls:"stat hard",num:d.Hard??0,label:"Hard"},
     ];
-    statsEl.textContent = "";
-    cells.forEach((c, i) => {
-      const w = document.createElement("div");
-      w.className = c.cls; w.style.animationDelay = `${i * 80}ms`;
-      const n = document.createElement("div"); n.className = "num"; n.textContent = c.num;
-      const l = document.createElement("div"); l.className = "label"; l.textContent = c.label;
-      w.append(n, l); statsEl.appendChild(w);
+    statsEl.textContent="";
+    cells.forEach((c,i)=>{
+      const w=document.createElement("div"); w.className=c.cls; w.style.animationDelay=`${i*80}ms`;
+      const n=document.createElement("div"); n.className="num"; n.textContent=c.num;
+      const l=document.createElement("div"); l.className="label"; l.textContent=c.label;
+      w.append(n,l); statsEl.appendChild(w);
     });
   }
-
-  function renderTopics(list, el, kind) {
-    el.textContent = "";
-    if (!list || !list.length) {
-      const s = document.createElement("span");
-      s.style.color = "var(--muted)"; s.style.fontSize = "14px";
-      s.textContent = "None detected yet."; el.appendChild(s); return;
-    }
-    list.forEach((t, i) => {
-      const name = t.topic || t.name || t;
-      const count = t.count ?? t.solved ?? "";
-      const b = document.createElement("span");
-      b.className = "badge " + kind;
-      b.style.animationDelay = `${i * 60}ms`;
-      b.textContent = name;
-      if (count !== "") {
-        const c = document.createElement("span");
-        c.className = "count"; c.textContent = count; b.appendChild(c);
-      }
+  function renderTopics(list,el,kind){
+    el.textContent="";
+    if(!list||!list.length){ const s=document.createElement("span");
+      s.style.color="var(--muted)"; s.style.fontSize="14px";
+      s.textContent="None detected yet."; el.appendChild(s); return; }
+    list.forEach((t,i)=>{
+      const name=extractTopic(t); const count=t.count??t.solved??"";
+      const b=document.createElement("span"); b.className="badge "+kind;
+      b.style.animationDelay=`${i*60}ms`; b.textContent=name;
+      if(count!==""){ const c=document.createElement("span");
+        c.className="count"; c.textContent=count; b.appendChild(c); }
       el.appendChild(b);
     });
   }
 
-  async function analyze(username, signal) {
-    const token = localStorage.getItem("gs_token");
-    const res = await fetch(`${API_BASE}/analyze`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify({ username }), 
-      signal
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || `Analysis request failed with status ${res.status}`);
-    }
+  async function analyze(username,signal){
+    const token=localStorage.getItem("gs_token");
+    const res=await fetch(`${API_BASE}/analyze`,{method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+      body:JSON.stringify({username}), signal});
+    if(!res.ok){ const e=await res.json().catch(()=>({}));
+      throw new Error(e.detail||`Analysis failed (${res.status})`); }
     return await res.json();
   }
 
-  async function streamPlan(username, topics, signal) {
-  const token = localStorage.getItem("gs_token");
-  const res = await fetch(`${API_BASE}/study-plan`, {
-    method: "POST", 
-    headers: { 
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-    // Pass the selected topics to the backend!
-    body: JSON.stringify({ username: username, selected_topics: topics }), 
-    signal
-  });
-  
-  if (!res.ok || !res.body) throw new Error(`Plan stream failed (${res.status})`);
-  
-  planEl.textContent = "";
-  // Removed the blinking cursor class here to prioritize the percentage UI
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  const generateBtn = document.getElementById("generate-plan-btn");
-  
-  let currentChars = 0;
-  const estimatedTotalChars = 3000; // Estimate for an 8-10 day plan
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      
-      const chunk = decoder.decode(value, { stream: true });
-      planEl.textContent += chunk;
-      planEl.scrollTop = planEl.scrollHeight;
-      
-      // Calculate and display the live percentage
-      currentChars += chunk.length;
-      let percent = Math.min(99, Math.floor((currentChars / estimatedTotalChars) * 100));
-      generateBtn.innerHTML = `<span class="loader"></span>Developing Plan... ${percent}%`;
+  async function streamPlan(username,topics,signal){
+    const token=localStorage.getItem("gs_token");
+    const res=await fetch(`${API_BASE}/study-plan`,{method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+      body:JSON.stringify({username,selected_topics:topics}), signal});
+    if(!res.ok||!res.body) throw new Error(`Plan stream failed (${res.status})`);
+    planEl.textContent=""; exportRow.style.display="none";
+    const reader=res.body.getReader(), dec=new TextDecoder();
+    let chars=0; const est=3000;
+    while(true){
+      const {done,value}=await reader.read(); if(done) break;
+      const chunk=dec.decode(value,{stream:true});
+      planEl.textContent+=chunk; planEl.scrollTop=planEl.scrollHeight;
+      chars+=chunk.length;
+      generateBtn.innerHTML=`<span class="loader"></span>Developing Plan… ${Math.min(99,Math.floor(chars/est*100))}%`;
     }
-    
-    planEl.textContent += decoder.decode();
-    generateBtn.innerHTML = `Plan Complete! (100%)`; // Snap to 100% on completion
-    
-  } finally {
-    // Any necessary cleanup
+    planEl.textContent+=dec.decode();
+    generateBtn.innerHTML=`Plan Complete! (100%)`;
+    exportRow.style.display="flex";
   }
-}
 
-  const generateBtn = document.getElementById("generate-plan-btn");
-  const planContainer = document.getElementById("plan-container");
-  const topicSelector = document.getElementById("topic-selector");
-  let currentAnalyzedUsername = "";
-
-  form.addEventListener("submit", async (e) => {
+  form.addEventListener("submit", async e=>{
     e.preventDefault(); clearError();
-    if (activeController) activeController.abort();
-    activeController = new AbortController();
-    const signal = activeController.signal;
-    const username = document.getElementById("username").value.trim();
-    if (!username) return;
-    
-    currentAnalyzedUsername = username;
-    switchTab('overview');
-    
-    btn.disabled = true;
-    btn.innerHTML = `<span class="loader"></span>Analyzing…`;
+    if(activeController) activeController.abort();
+    activeController=new AbortController();
+    const signal=activeController.signal;
+    const username=document.getElementById("username").value.trim();
+    if(!username) return;
+    currentAnalyzedUsername=username; switchTab('overview');
+    btn.disabled=true; btn.innerHTML=`<span class="loader"></span>Analyzing…`;
     results.classList.remove("visible");
-    planContainer.style.display = "none";
-    planEl.textContent = "";
-
-    try {
-      const analysis = await analyze(username, signal);
-      
+    planContainer.style.display="none"; planEl.textContent="";
+    try{
+      const analysis=await analyze(username,signal);
+      currentAnalysis=analysis;
       renderStats(analysis);
-      renderTopics(analysis.strong_topics || [], strongEl, "strong");
-      renderTopics(analysis.weak_topics || [], weakEl, "weak");
-      renderChart(analysis.difficulty_breakdown || {});
-      renderCategorizedProblems(analysis.categorized_problems || {});
-      
-      // Populate the Topic Selector Checklist in the Study Plan Tab
-      topicSelector.innerHTML = "";
-      const allTopics = new Set();
-      (analysis.weak_topics || []).forEach(t => allTopics.add(t.topic || t.name));
-      (analysis.strong_topics || []).forEach(t => allTopics.add(t.topic || t.name));
-      
-      if (allTopics.size === 0) {
-        topicSelector.innerHTML = '<span style="color: var(--muted); font-size: 14px;">No topics found for this user.</span>';
-      } else {
-        allTopics.forEach(topic => {
-          const lbl = document.createElement("label");
-          lbl.style.display = "inline-flex"; lbl.style.alignItems = "center"; 
-          lbl.style.gap = "6px"; lbl.style.marginRight = "16px"; lbl.style.cursor = "pointer";
-          
-          const cb = document.createElement("input");
-          cb.type = "checkbox"; cb.value = topic; cb.className = "topic-checkbox";
-          
-          lbl.appendChild(cb); lbl.appendChild(document.createTextNode(topic));
-          topicSelector.appendChild(lbl);
-        });
-        generateBtn.style.display = "inline-block";
-        // Reset button text on fresh analysis just in case
-        generateBtn.textContent = "Generate Custom Plan"; 
-      }
+      renderTopics(analysis.strong_topics||[],strongEl,"strong");
+      renderTopics(analysis.weak_topics||[],weakEl,"weak");
+      renderChart(analysis.difficulty_breakdown||{});
+      renderRadar(analysis.all_topic_counts||[]);
+      renderBar(analysis.all_topic_counts||[]);
+      renderProgression(analysis.calendar?.progression);
+      renderStreak(analysis.calendar);
+      renderCategorizedProblems(analysis.recent_clusters||{});
 
-      results.classList.add("visible");
+      const set=new Set();
+      (analysis.all_topic_counts||[]).forEach(t => { if(extractTopic(t)) set.add(extractTopic(t)) });
+      (analysis.weak_topics||[]).forEach(t => { if(extractTopic(t)) set.add(extractTopic(t)) });
+      const topics=[...set];
+      buildDropdown(topics);
       
-    } catch (err) {
-      if (err.name === "AbortError") return;
-      showError(err.message || "Something went wrong.");
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Analyze";
-      activeController = null;
+      generateBtn.style.display = topics.length ? "block" : "none";
+      generateBtn.textContent="Generate Custom Plan";
+      results.classList.add("visible");
+    }catch(err){
+      if(err.name==="AbortError") return;
+      showError(err.message||"Something went wrong.");
+    }finally{
+      btn.disabled=false; btn.textContent="Analyze & Plan"; activeController=null;
     }
   });
 
-  // Handle the manual generation of the plan
-  generateBtn.addEventListener("click", async () => {
-    if (activeController) activeController.abort();
-    activeController = new AbortController();
-    const signal = activeController.signal;
+  generateBtn.addEventListener("click", async ()=>{
+    if(activeController) activeController.abort();
+    activeController=new AbortController();
+    const signal=activeController.signal;
+    const topics=[...document.querySelectorAll(".topic-checkbox:checked")].map(c=>c.value);
+    planContainer.style.display="block";
+    generateBtn.disabled=true;
+    generateBtn.innerHTML=`<span class="loader"></span>Developing Plan… 0%`;
+    try{ await streamPlan(currentAnalyzedUsername,topics,signal); }
+    catch(err){ if(err.name!=="AbortError"){
+      planEl.textContent="Error generating plan: "+err.message;
+      generateBtn.textContent="Generate Custom Plan"; } }
+    finally{ generateBtn.disabled=false; activeController=null; }
+  });
+
+  /* ── Compare ── */
+  function renderCompareRadar(a,b){
+    const ctx=document.getElementById('compareRadar').getContext('2d');
+    if(compareInstance) compareInstance.destroy();
+    const labelSet=new Set();
     
-    // Gather which checkboxes were checked
-    const checkedBoxes = document.querySelectorAll(".topic-checkbox:checked");
-    const selectedTopics = Array.from(checkedBoxes).map(cb => cb.value);
+    (a.all_topic_counts||[]).forEach(t=> { if(extractTopic(t)) labelSet.add(extractTopic(t)) });
+    (b.all_topic_counts||[]).forEach(t=> { if(extractTopic(t)) labelSet.add(extractTopic(t)) });
+    const labels=[...labelSet].slice(0,8);
     
-    planContainer.style.display = "block";
-    generateBtn.disabled = true;
-    generateBtn.innerHTML = `<span class="loader"></span>Developing Plan... 0%`;
+    const map=arr=>{ const m={}; (arr||[]).forEach(t=>m[extractTopic(t)]=t.count); return m; };
+    const ma=map(a.all_topic_counts), mb=map(b.all_topic_counts);
     
-    try {
-      await streamPlan(currentAnalyzedUsername, selectedTopics, signal);
-    } catch (err) {
-      if (err.name !== "AbortError") {
-        planEl.textContent = "Error generating plan: " + err.message;
-        generateBtn.textContent = "Generate Custom Plan"; // Only reset on error
-      }
-    } finally {
-      generateBtn.disabled = false;
-      // Note: We deliberately do NOT blindly reset textContent here anymore, 
-      // otherwise it overwrites the "Plan Complete!" success message!
-      activeController = null;
-    }
+    compareInstance=new Chart(ctx,{ type:'radar',
+      data:{ labels,
+        datasets:[
+          {label:a.username, data:labels.map(l=>ma[l]||0),
+            backgroundColor:'rgba(255,90,54,.18)', borderColor:'#FF5A36', borderWidth:2, pointBackgroundColor:'#FF5A36'},
+          {label:b.username, data:labels.map(l=>mb[l]||0),
+            backgroundColor:'rgba(99,102,241,.18)', borderColor:'#6366F1', borderWidth:2, pointBackgroundColor:'#6366F1'}
+        ]},
+      options:{ responsive:true, plugins:{legend:{labels:{color:txtColor()}}},
+        scales:{ r:{ angleLines:{color:gridColor()}, grid:{color:gridColor()},
+          pointLabels:{color:txtColor(),font:{size:11}}, ticks:{display:false,backdropColor:'transparent'} } } }
+    });
+  }
+  
+  function renderCompareStats(a,b){
+    const el=document.getElementById('compare-stats');
+    const card=(u)=>`
+      <div class="card">
+        <h3 style="margin-bottom:14px">@${u.username}</h3>
+        <div class="stats" style="margin:0">
+          <div class="stat"><div class="num">${u.difficulty_breakdown?.All||0}</div><div class="label">Total</div></div>
+          <div class="stat easy"><div class="num">${u.difficulty_breakdown?.Easy||0}</div><div class="label">Easy</div></div>
+          <div class="stat medium"><div class="num">${u.difficulty_breakdown?.Medium||0}</div><div class="label">Medium</div></div>
+          <div class="stat hard"><div class="num">${u.difficulty_breakdown?.Hard||0}</div><div class="label">Hard</div></div>
+        </div>
+      </div>`;
+    el.innerHTML = card(a)+card(b);
+  }
+  
+  document.getElementById("compare-btn").addEventListener("click", async ()=>{
+    const cErr=document.getElementById("compare-error");
+    cErr.classList.remove("visible");
+    const friend=document.getElementById("friend-username").value.trim();
+    if(!friend){ cErr.textContent="Enter a friend's username."; cErr.classList.add("visible"); return; }
+    if(!currentAnalyzedUsername){ cErr.textContent="Analyze your own profile first."; cErr.classList.add("visible"); return; }
+    
+    const cbtn=document.getElementById("compare-btn");
+    cbtn.disabled=true; cbtn.innerHTML=`<span class="loader"></span>Comparing…`;
+    try{
+      const token=localStorage.getItem("gs_token");
+      const res=await fetch(`${API_BASE}/compare`,{method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+        body:JSON.stringify({username_a:currentAnalyzedUsername, username_b:friend})});
+      if(!res.ok){ const e=await res.json().catch(()=>({}));
+        throw new Error(e.detail||`Compare failed (${res.status})`); }
+      const data=await res.json();
+      
+      document.getElementById("compare-results").style.display="block";
+      renderCompareRadar(data.a,data.b);
+      renderCompareStats(data.a,data.b);
+      
+    }catch(err){ cErr.textContent=err.message; cErr.classList.add("visible"); }
+    finally{ cbtn.disabled=false; cbtn.textContent="Compare"; }
   });
 </script>
 </body>
