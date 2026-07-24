@@ -22,8 +22,8 @@ handler = Mangum(app)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=["*"], # NOTE: Change "*" to your actual frontend URL later for security!
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
