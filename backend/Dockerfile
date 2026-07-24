@@ -1,9 +1,12 @@
-FROM python:3.11-slim
+# Use the official AWS Lambda Python image
+FROM public.ecr.aws/lambda/python:3.10
 
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
+# Copy requirements and install dependencies
+COPY requirements.txt ${LAMBDA_TASK_ROOT}
+RUN pip install -r requirements.txt
 
-EXPOSE 8000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Copy your application code
+COPY . ${LAMBDA_TASK_ROOT}
+
+# Point AWS Lambda to the Mangum handler you just created
+CMD [ "main.handler" ]

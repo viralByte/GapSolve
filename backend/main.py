@@ -9,7 +9,8 @@ from auth import router as auth_router, get_current_user
 from leetcode_client import fetch_full_profile
 from analyzer import analyze_gaps
 from llm_service import stream_study_plan
-
+from mangum import Mangum
+handler = Mangum(app)
 app = FastAPI()
 
 app.add_middleware(
