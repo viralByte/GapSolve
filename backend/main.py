@@ -10,8 +10,15 @@ from leetcode_client import fetch_full_profile
 from analyzer import analyze_gaps
 from llm_service import stream_study_plan
 from mangum import Mangum
-handler = Mangum(app)
 app = FastAPI()
+
+# 2. Add your routes
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
+
+# 3. Define the Mangum handler LAST
+handler = Mangum(app)
 
 app.add_middleware(
     CORSMiddleware,
