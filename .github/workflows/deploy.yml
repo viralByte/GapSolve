@@ -32,8 +32,4 @@ jobs:
       run: |
         cd backend
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-<<<<<<< HEAD
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-=======
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
->>>>>>> b814dd685556246ec875e6a293cd252f741c40f1
