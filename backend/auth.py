@@ -16,7 +16,7 @@ security = HTTPBearer()
 SECRET_KEY = "your-super-secret-key-change-this-later"
 ALGORITHM = "HS256"
 
-DB_FILE = "users_db.json"
+DB_FILE = "/tmp/users_db.json"
 
 
 # ---------------------------
