@@ -17,8 +17,6 @@ app = FastAPI()
 def read_root():
     return {"Hello": "World"}
 
-# 3. Define the Mangum handler LAST
-handler = Mangum(app)
 
 app.add_middleware(
     CORSMiddleware,
@@ -64,3 +62,4 @@ async def study_plan_endpoint(request: StudyPlanRequest, current_user: dict = De
         stream_study_plan(gap_analysis, request.selected_topics),
         media_type="text/event-stream"
     )
+handler = Mangum(app)
