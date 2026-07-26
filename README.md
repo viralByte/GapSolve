@@ -3,7 +3,7 @@
 > **GapSolve** is an intelligent, full-stack application designed to analyze a user's LeetCode performance, spot their weakest computer science fundamentals, and generate a personalized, streamed day-by-day DSA study plan.
 
 ---
-Live App Link- main.d5tuh7eyc0351.amplifyapp.com
+Live App Link- (https://main.d5tuh7eyc0351.amplifyapp.com)
 
 ## 🚀 Features
 
