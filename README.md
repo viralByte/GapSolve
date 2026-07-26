@@ -8,23 +8,23 @@ Live App Link- main.d5tuh7eyc0351.amplifyapp.com
 ## 🚀 Features
 
 * **Automated Profile Analysis:** Parses public LeetCode profiles via GraphQL to calculate difficulty breakdowns and topic mastery metrics.
-* **Smart Topic Clustering:** Groups recently solved problems into recognizable patterns (e.g., Sliding Window, Dynamic Programming, Graphs)[cite: 4].
-* **Real-Time LLM Streaming:** Integrates with the Google Gemini API to stream a tailored 8–10 day study plan chunk-by-chunk using Server-Sent Events (SSE)[cite: 5].
-* **Interactive Dashboard:** Features Chart.js visualizations (doughnut, radar, and horizontal bar charts), consistency streak heatmaps, and month-over-month progression trackers[cite: 1].
-* **Custom Focus Selector:** Allows users to pick specific weak modules via an interactive multi-select dropdown for targeted revision[cite: 1].
-* **Friend Comparison Mode:** Stacks two user profiles head-to-head on a unified coverage radar chart[cite: 1].
-* **Secure Authentication:** JWT-based session management with robust password hashing (bcrypt) and restricted `@gmail.com` access rules[cite: 2].
+* **Smart Topic Clustering:** Groups recently solved problems into recognizable patterns (e.g., Sliding Window, Dynamic Programming, Graphs).
+* **Real-Time LLM Streaming:** Integrates with the Google Gemini API to stream a tailored 8–10 day study plan chunk-by-chunk using Server-Sent Events (SSE).
+* **Interactive Dashboard:** Features Chart.js visualizations (doughnut, radar, and horizontal bar charts), consistency streak heatmaps, and month-over-month progression trackers.
+* **Custom Focus Selector:** Allows users to pick specific weak modules via an interactive multi-select dropdown for targeted revision.
+* **Friend Comparison Mode:** Stacks two user profiles head-to-head on a unified coverage radar chart.
+* **Secure Authentication:** JWT-based session management with robust password hashing (bcrypt) and restricted `@gmail.com` access rules.
 
 ---
 
 ## 🛠️ Technology Stack
 
-* **Frontend:** HTML5, CSS3, JavaScript (ES6+), Chart.js[cite: 1]
-* **Hosting (Frontend):** AWS Amplify[cite: 1]
-* **Backend:** Python, FastAPI, Mangum[cite: 6, 7]
-* **Compute (Backend):** AWS Lambda (Serverless Container)[cite: 3]
-* **AI & Parsing:** Google Gemini API (`gemini-2.5-flash`), HTTPX (GraphQL Client)[cite: 4, 5]
-* **Storage:** Ephemeral writable execution storage (`/tmp/users_db.json`)[cite: 3]
+* **Frontend:** HTML5, CSS3, JavaScript (ES6+), Chart.js
+* **Hosting (Frontend):** AWS Amplify
+* **Backend:** Python, FastAPI, Mangum
+* **Compute (Backend):** AWS Lambda (Serverless Container)
+* **AI & Parsing:** Google Gemini API (`gemini-2.5-flash`), HTTPX (GraphQL Client)
+* **Storage:** Ephemeral writable execution storage (`/tmp/users_db.json`)
 
 ---
 
@@ -32,14 +32,14 @@ Live App Link- main.d5tuh7eyc0351.amplifyapp.com
 
 ```text
 GapSolve/
-├── main.py              # FastAPI application entry point & Mangum handler[cite: 6]
-├── auth.py              # User authentication, password hashing & JWT logic[cite: 2]
-├── leetcode_client.py   # Asynchronous LeetCode GraphQL profile fetcher[cite: 4]
-├── analyzer.py          # Gap analysis, pattern clustering & calendar parser[cite: 1]
-├── llm_service.py       # LLM provider integration & streaming service[cite: 5]
-├── Dockerfile           # AWS Lambda container configuration[cite: 3]
-├── requirements.txt     # Python dependency manifest[cite: 8]
-└── index.html           # Full frontend dashboard UI & client logic[cite: 1]
+├── main.py              # FastAPI application entry point & Mangum handler
+├── auth.py              # User authentication, password hashing & JWT logic
+├── leetcode_client.py   # Asynchronous LeetCode GraphQL profile fetcher
+├── analyzer.py          # Gap analysis, pattern clustering & calendar parser
+├── llm_service.py       # LLM provider integration & streaming service
+├── Dockerfile           # AWS Lambda container configuration
+├── requirements.txt     # Python dependency manifest
+└── index.html           # Full frontend dashboard UI & client logic
 ```
 
 ## ⚙️ Local Development & Setup
