@@ -1,9 +1,9 @@
-import json
 import os
 import jwt
 import hashlib
 import secrets
 import base64
+import boto3
 
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Depends
@@ -16,24 +16,13 @@ security = HTTPBearer()
 SECRET_KEY = "your-super-secret-key-change-this-later"
 ALGORITHM = "HS256"
 
-DB_FILE = "/tmp/users_db.json"
-
-
 # ---------------------------
-# Database Helpers
+# DynamoDB Configuration
 # ---------------------------
 
-def load_db():
-    if not os.path.exists(DB_FILE):
-        return {}
-
-    with open(DB_FILE, "r") as f:
-        return json.load(f)
-
-
-def save_db(db):
-    with open(DB_FILE, "w") as f:
-        json.dump(db, f, indent=4)
+dynamodb = boto3.resource("dynamodb")
+table_name = os.getenv("DYNAMODB_TABLE", "gapsolve_users")
+table = dynamodb.Table(table_name)
 
 
 # ---------------------------
@@ -102,12 +91,15 @@ def get_current_user(
 
         email = payload.get("sub")
 
-        db = load_db()
-
-        if email is None or email not in db:
+        if email is None:
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
-        return db[email]
+        # Fetch user from DynamoDB instead of local json
+        response = table.get_item(Key={"email": email})
+        if "Item" not in response:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+
+        return response["Item"]
 
     except jwt.ExpiredSignatureError:
         raise HTTPException(
@@ -129,27 +121,30 @@ def get_current_user(
 @router.post("/signup")
 def signup(user: UserSignup):
 
-    if not user.email.lower().endswith("@gmail.com"):
+    email = user.email.lower().strip()
+
+    if not email.endswith("@gmail.com"):
         raise HTTPException(
             status_code=400,
             detail="Access restricted: Only @gmail.com accounts are allowed.",
         )
 
-    db = load_db()
-
-    if user.email in db:
+    # Check if user already exists in DynamoDB
+    response = table.get_item(Key={"email": email})
+    if "Item" in response:
         raise HTTPException(
             status_code=400,
             detail="This email is already registered.",
         )
 
-    db[user.email] = {
-        "name": user.name,
-        "email": user.email,
-        "password": hash_password(user.password),
-    }
-
-    save_db(db)
+    # Save user item to DynamoDB table
+    table.put_item(
+        Item={
+            "email": email,
+            "name": user.name,
+            "password": hash_password(user.password),
+        }
+    )
 
     return {
         "message": "Account created successfully"
@@ -163,9 +158,11 @@ def signup(user: UserSignup):
 @router.post("/login")
 def login(user: UserLogin):
 
-    db = load_db()
+    email = user.email.lower().strip()
 
-    db_user = db.get(user.email)
+    # Fetch user from DynamoDB table
+    response = table.get_item(Key={"email": email})
+    db_user = response.get("Item")
 
     if not db_user:
         raise HTTPException(
@@ -183,7 +180,7 @@ def login(user: UserLogin):
 
     token = jwt.encode(
         {
-            "sub": user.email,
+            "sub": email,
             "exp": expire,
         },
         SECRET_KEY,
